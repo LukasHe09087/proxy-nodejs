@@ -1,0 +1,10 @@
+{
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "miniflare": "^3.20231030.3"
+  },
+  "scripts": {
+    "start": "node daemon.js"
+  }
+}
