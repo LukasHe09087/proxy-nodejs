@@ -30,17 +30,29 @@ const config = (() => {
   try {
     config_json = JSON.parse(process.env.CONFIG);
   } catch {
-    config_json = JSON.parse(fs.readFileSync('./config.json').toString());
+    try {
+      config_json = JSON.parse(fs.readFileSync('./config.json').toString());
+    } catch {
+      config_json = {};
+    }
+  }
+  let part_argo;
+  if (config_json['argo']) {
+    part_argo = {
+      argo_path:
+        config_json['argo_path'] ||
+        (os.platform() == 'win32' ? './cloudflared.exe' : './cloudflared'),
+      use_argo: config_json['argo']['use'] || false,
+      argo_protocol: config_json['argo']['protocol'] || '',
+      argo_region: config_json['argo']['region'] || '',
+      argo_access_token: config_json['argo']['token'] || '',
+    };
   }
   return {
     // core
     port: config_json['port'] || 3000,
     // argo (cloudflared)
-    argo_path: config_json['argo_path'] || './cloudflared',
-    use_argo: config_json['argo']['use'] || false,
-    argo_protocol: config_json['argo']['protocol'] || '',
-    argo_region: config_json['argo']['region'] || '',
-    argo_access_token: config_json['argo']['token'] || '',
+    ...part_argo,
   };
 })();
 
