@@ -48,9 +48,22 @@ const config = (() => {
       argo_access_token: config_json['argo']['token'] || '',
     };
   }
+  let part_tls;
+  if (config_json['tls']) {
+    part_tls = {
+      use_tls: config_json['tls']['use'] || false,
+      // please use base64 encode
+      tls_key:
+        Buffer.from(config_json['tls']['key'], 'base64').toString() || '',
+      tls_cert:
+        Buffer.from(config_json['tls']['cert'], 'base64').toString() || '',
+    };
+  }
   return {
     // core
     port: config_json['port'] || 3000,
+    // tls
+    ...part_tls,
     // argo (cloudflared)
     ...part_argo,
   };
