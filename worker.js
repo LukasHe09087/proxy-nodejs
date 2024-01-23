@@ -34,11 +34,17 @@ async function fetchHandler(e) {
   const req = e.request;
   const urlStr = req.url;
   const urlObj = new URL(urlStr);
-  if (urlObj.pathname !== PREFIX) {
+  if (urlObj.pathname == '/generate_204') {
+    let out_response = new Response('', {
+      status: 204,
+    });
+
+    return out_response;
+  } else if (urlObj.pathname !== PREFIX) {
     let path = urlObj.href.replace(urlObj.origin + '/', '');
     path = path.replace(/http:/g, 'http:/');
     path = path.replace(/https:/g, 'https:/');
-    console.log(req.headers.get('referer'));
+    // console.log(req.headers.get('referer'));
     let referer = '';
     if (path.substring(0, 1) == ':') {
       let path_split = path.split(':');
@@ -52,7 +58,7 @@ async function fetchHandler(e) {
       path = array.join(':');
     } else if (path.substring(0, 1) == ';') {
       let path_split = path.split(';');
-      console.log(path_split[1]);
+      // console.log(path_split[1]);
       referer = path_split[1];
       let array = [];
       for (let i = 0; i + 2 < path_split.length; i++) {
@@ -60,7 +66,7 @@ async function fetchHandler(e) {
       }
       path = array.join(';');
     }
-    console.log(path);
+    // console.log(path);
 
     return fetchAndApply(path, req, referer);
   } else {
@@ -70,7 +76,7 @@ async function fetchHandler(e) {
 }
 
 async function fetchAndApply(host, request, referer) {
-  console.log(request);
+  // console.log(request);
   let f_url = new URL(host);
   // let f_url = new URL(request.url);
   // f_url.href = host;
