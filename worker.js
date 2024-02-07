@@ -1,6 +1,6 @@
 'use strict';
 
-const ASSET_URL = 'https://404.full.tk/';
+const ASSET_URL = 'https://404.mise.eu.org/';
 // 前缀，如果自定义路由为example.com/gh/*，将PREFIX改为 '/gh/'，注意，少一个杠都会错！
 const PREFIX = '/';
 
