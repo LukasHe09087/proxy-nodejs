@@ -91,8 +91,6 @@ app.use(async (req, res, next) => {
 const axios = require('axios');
 
 const ASSET_URL = 'https://404.mise.eu.org/';
-// 前缀，如果自定义路由为example.com/gh/*，将PREFIX改为 '/gh/'，注意，少一个杠都会错！
-const PREFIX = '/';
 
 // CF proxy all, 一切给CF代理，true/false
 const CFproxy = true;
@@ -120,9 +118,10 @@ function makeRes(body, status = 200, headers = {}) {
 async function fetchHandler(req, res) {
   const urlStr = req.protocol + '://' + req.get('host') + req.url;
   const urlObj = new URL(urlStr);
+  console.log(urlObj.pathname);
   if (urlObj.pathname == '/generate_204') {
     return makeRes('', 204);
-  } else if (urlObj.pathname !== PREFIX) {
+  } else if (urlObj.pathname.startsWith('/http')) {
     let path = urlObj.href.replace(urlObj.origin + '/', '');
     path = path.replace(/http:\/(?!\/)/g, 'http://');
     path = path.replace(/https:\/(?!\/)/g, 'https://');
@@ -164,9 +163,14 @@ async function fetchHandler(req, res) {
 
 async function fetchAndApply(host, request, resource, referer) {
   // console.log(request);
-  let f_url = new URL(host);
-  // let f_url = new URL(request.url);
-  // f_url.href = host;
+  let f_url;
+  try {
+    f_url = new URL(host);
+    // f_url = new URL(request.url);
+    // f_url.href = host;
+  } catch (error) {
+    return error;
+  }
 
   let response = null;
   if (!CFproxy) {
@@ -212,7 +216,7 @@ async function fetchAndApply(host, request, resource, referer) {
     resource.end(null);
   });
 
-  // return makeRes(out_body, response.status, out_headers);
+  return null;
 }
 
 // 处理 404 错误
