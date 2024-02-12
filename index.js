@@ -118,7 +118,6 @@ function makeRes(body, status = 200, headers = {}) {
 async function fetchHandler(req, res) {
   const urlStr = req.protocol + '://' + req.get('host') + req.url;
   const urlObj = new URL(urlStr);
-  console.log(urlObj.pathname);
   if (urlObj.pathname == '/generate_204') {
     return makeRes('', 204);
   } else if (urlObj.pathname.startsWith('/http')) {
