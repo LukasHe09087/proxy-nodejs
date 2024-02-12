@@ -76,9 +76,11 @@ app.use((req, res, next) => {
 });
 app.use(async (req, res, next) => {
   try {
-    const resp = await fetchHandler(req);
-    res.writeHead(resp.status, resp.headers);
-    res.end(resp.data);
+    const resp = await fetchHandler(req, res);
+    if (resp) {
+      res.writeHead(resp.status, resp.headers);
+      res.end(resp.data);
+    }
   } catch (error) {
     const resp = makeRes('Error:\n' + error, 502);
     res.writeHead(resp.status, resp.headers);
@@ -115,7 +117,7 @@ function makeRes(body, status = 200, headers = {}) {
 /**
  * @param {FetchEvent} e
  */
-async function fetchHandler(req) {
+async function fetchHandler(req, res) {
   const urlStr = req.protocol + '://' + req.get('host') + req.url;
   const urlObj = new URL(urlStr);
   if (urlObj.pathname == '/generate_204') {
@@ -148,7 +150,8 @@ async function fetchHandler(req) {
     }
     // console.log(path);
 
-    return fetchAndApply(path, req, referer);
+    fetchAndApply(path, req, res, referer);
+    return undefined;
   } else {
     try {
       const resp = await _request(ASSET_URL);
@@ -159,7 +162,7 @@ async function fetchHandler(req) {
   }
 }
 
-async function fetchAndApply(host, request, referer) {
+async function fetchAndApply(host, request, resource, referer) {
   // console.log(request);
   let f_url = new URL(host);
   // let f_url = new URL(request.url);
@@ -171,6 +174,7 @@ async function fetchAndApply(host, request, referer) {
       method: request.method,
       body: request.body,
       headers: request.headers,
+      stream: true,
     });
   } else {
     let method = request.method;
@@ -185,6 +189,7 @@ async function fetchAndApply(host, request, referer) {
       method: method,
       body: body,
       headers: new_request_headers,
+      stream: true,
     });
   }
 
@@ -198,7 +203,16 @@ async function fetchAndApply(host, request, referer) {
   };
   let out_body = response.data;
 
-  return makeRes(out_body, response.status, out_headers);
+  resource.writeHead(response.status, out_headers);
+
+  out_body.on('data', data => {
+    resource.write(data);
+  });
+  out_body.on('end', () => {
+    resource.end(null);
+  });
+
+  // return makeRes(out_body, response.status, out_headers);
 }
 
 // 处理 404 错误
@@ -256,9 +270,10 @@ function keepalive() {
     keepalive();
   }, (Math.ceil(Math.random() * 15) * 1000 * 60) / 2);
 }
+
 async function _request(
   url,
-  { method = 'GET', headers = null, body = null } = {}
+  { stream = false, method = 'GET', headers = null, body = null } = {}
 ) {
   return new Promise((resolve, reject) => {
     axios({
@@ -269,7 +284,7 @@ async function _request(
       transformResponse: res => {
         return res;
       },
-      responseType: 'arraybuffer',
+      responseType: stream ? 'stream' : 'arraybuffer',
     })
       .then(response => {
         try {
