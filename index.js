@@ -120,7 +120,10 @@ async function fetchHandler(req, res) {
   const urlObj = new URL(urlStr);
   if (urlObj.pathname == '/generate_204') {
     return makeRes('', 204);
-  } else if (urlObj.pathname.startsWith('/http')) {
+  } else if (
+    urlObj.pathname.startsWith('/http') ||
+    urlObj.pathname.startsWith('/;')
+  ) {
     let path = urlObj.href.replace(urlObj.origin + '/', '');
     path = path.replace(/http:\/(?!\/)/g, 'http://');
     path = path.replace(/https:\/(?!\/)/g, 'https://');
