@@ -267,9 +267,9 @@ async function _request(
       data: body,
       headers: headers,
       transformResponse: res => {
-        // Do your own parsing here if needed ie JSON.parse(res);
         return res;
       },
+      responseType: 'arraybuffer',
     })
       .then(response => {
         try {
