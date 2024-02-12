@@ -33,24 +33,28 @@ const config = (() => {
     try {
       config_json = JSON.parse(fs.readFileSync('./config.json').toString());
     } catch {
+      console.log('[软件]', `Config Error`);
       config_json = {};
     }
   }
-  let part_argo;
+  let part_argo = {
+    argo_path:
+      config_json['argo_path'] ||
+      (os.platform() == 'win32' ? './cloudflared.exe' : './cloudflared'),
+  };
   if (config_json['argo']) {
     part_argo = {
-      argo_path:
-        config_json['argo_path'] ||
-        (os.platform() == 'win32' ? './cloudflared.exe' : './cloudflared'),
+      ...part_argo,
       use_argo: config_json['argo']['use'] || false,
       argo_protocol: config_json['argo']['protocol'] || '',
       argo_region: config_json['argo']['region'] || '',
       argo_access_token: config_json['argo']['token'] || '',
     };
   }
-  let part_tls;
+  let part_tls = {};
   if (config_json['tls']) {
     part_tls = {
+      ...part_tls,
       use_tls: config_json['tls']['use'] || false,
       // please use base64 encode
       tls_key:
@@ -60,7 +64,6 @@ const config = (() => {
     };
   }
   return {
-    // core
     port: config_json['port'] || 3000,
     // tls
     ...part_tls,
