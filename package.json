@@ -2,7 +2,9 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "miniflare": "^3.20231030.3"
+    "compression": "^1.7.4",
+    "express": "^4.18.2",
+    "crypto-js": "^4.1.1"
   },
   "scripts": {
     "start": "node daemon.js"
