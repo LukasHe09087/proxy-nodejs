@@ -1,8 +1,6 @@
-const cryptoJS = require('crypto-js');
 const os = require('os');
 const http = require('http');
 const https = require('https');
-
 const config = (() => {
   let config_json;
   try {
@@ -49,97 +47,6 @@ const config = (() => {
     ...part_argo,
   };
 })();
-const proxy_address = '';
-const api_address = 'https://api.v2rayse.com/api/oss';
-const user_agent =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36';
-function getCfVerify() {
-  return cryptoJS.AES.encrypt(
-    Date.now().toString(),
-    cryptoJS.enc.Base64.parse('plr4EY25bk1HbC6a+W76TQ=='),
-    { mode: cryptoJS.mode.ECB, padding: cryptoJS.pad.Pkcs7 }
-  ).toString();
-}
-
-async function getList(password) {
-  if (!password) return;
-  let request = await (
-    await fetch(proxy_address + api_address + '/' + password, {
-      method: 'GET',
-      headers: {
-        'cf-verify': getCfVerify(),
-        'User-Agent': user_agent,
-      },
-    })
-  ).json();
-  // console.log(request);
-  return request;
-}
-async function getFile(file_url) {
-  if (!file_url) return;
-  let request = await (
-    await fetch(proxy_address + file_url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': user_agent,
-      },
-    })
-  ).text();
-  // console.log(request);
-  return request;
-}
-async function setFile(password, folder, name, content) {
-  if (!password || !folder || !name || !content) return;
-  let body = {
-    id: null,
-    name: name,
-    folder: folder,
-    content: content,
-    password: password,
-  };
-  let request = await (
-    await fetch(proxy_address + api_address, {
-      method: 'POST',
-      headers: {
-        'cf-verify': getCfVerify(),
-        'User-Agent': user_agent,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-  ).json();
-  // console.log(request);
-  return request;
-}
-async function delFile(password, folder, name) {
-  if (!password || !folder || !name) return;
-  let body = {
-    id: null,
-    name: name,
-    folder: folder,
-    password: password,
-  };
-  let request = await (
-    await fetch(proxy_address + api_address, {
-      method: 'DELETE',
-      headers: {
-        'cf-verify': getCfVerify(),
-        'User-Agent': user_agent,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-  ).json();
-  // console.log(request);
-  return request;
-}
-module.exports = {
-  getList,
-  getFile,
-  setFile,
-  delFile,
-};
-
 const express = require('express');
 const compression = require('compression');
 const app = express();
@@ -155,10 +62,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/generate_204', (req, res) => {
-  res.status(204);
-  res.end('');
-});
 app.use((req, res, next) => {
   let data = [];
   req.on('data', chunk => {
@@ -169,44 +72,132 @@ app.use((req, res, next) => {
     next();
   });
 });
+app.use(async (req, res, next) => {
+  try {
+    const resp = await fetchHandler(req);
+    res.writeHead(resp.status, resp.headers);
+    res.end(resp.data);
+  } catch (error) {
+    const resp = makeRes('Error:\n' + error, 502);
+    res.writeHead(resp.status, resp.headers);
+    res.end(resp.data);
+  }
+});
 
-app.use('/getList', async (req, res) => {
-  try {
-    const password = req.url.substring(1);
-    const response = await getList(password);
-    res.send(response);
-  } catch (error) {
-    res.status(500).send({ error: 'An error occurred' });
+const axios = require('axios');
+
+const ASSET_URL = 'https://404.mise.eu.org/';
+// 前缀，如果自定义路由为example.com/gh/*，将PREFIX改为 '/gh/'，注意，少一个杠都会错！
+const PREFIX = '/';
+
+// CF proxy all, 一切给CF代理，true/false
+const CFproxy = true;
+
+/**
+ * @param {any} body
+ * @param {number} status
+ * @param {Object<string, string>} headers
+ */
+function makeRes(body, status = 200, headers = {}) {
+  headers['Access-Control-Allow-Methods'] =
+    'GET,HEAD,POST,PUT,DELETE,CONNECT,OPTIONS,TRACE,PATCH';
+  headers['Access-Control-Allow-Headers'] = '*,Authorization';
+  headers['Access-Control-Allow-Origin'] = '*';
+  return {
+    data: body,
+    status: status,
+    headers: headers,
+  };
+}
+
+/**
+ * @param {FetchEvent} e
+ */
+async function fetchHandler(req) {
+  const urlStr = req.protocol + '://' + req.get('host') + req.url;
+  const urlObj = new URL(urlStr);
+  if (urlObj.pathname == '/generate_204') {
+    return makeRes('', 204);
+  } else if (urlObj.pathname !== PREFIX) {
+    let path = urlObj.href.replace(urlObj.origin + '/', '');
+    path = path.replace(/http:/g, 'http:/');
+    path = path.replace(/https:/g, 'https:/');
+    // console.log(req.headers.get('referer'));
+    let referer = '';
+    if (path.substring(0, 1) == ':') {
+      let path_split = path.split(':');
+      if (req.headers.get('referer')) {
+        referer = req.headers.get('referer');
+      }
+      let array = [];
+      for (let i = 0; i + 1 < path_split.length; i++) {
+        array[i] = path_split[i + 1];
+      }
+      path = array.join(':');
+    } else if (path.substring(0, 1) == ';') {
+      let path_split = path.split(';');
+      // console.log(path_split[1]);
+      referer = path_split[1];
+      let array = [];
+      for (let i = 0; i + 2 < path_split.length; i++) {
+        array[i] = path_split[i + 2];
+      }
+      path = array.join(';');
+    }
+    // console.log(path);
+
+    return fetchAndApply(path, req, referer);
+  } else {
+    try {
+      const resp = await _request(ASSET_URL);
+      return makeRes(resp.data, resp.status, resp.headers);
+    } catch (error) {
+      return makeRes('Error:\n' + error, 502);
+    }
   }
-});
-app.use('/getFile', async (req, res) => {
-  try {
-    res.header('content-type', 'text/plain');
-    const file_url = req.url.substring(1);
-    const response = await getFile(file_url);
-    res.send(response);
-  } catch (error) {
-    res.status(500).send({ error: 'An error occurred' });
+}
+
+async function fetchAndApply(host, request, referer) {
+  // console.log(request);
+  let f_url = new URL(host);
+  // let f_url = new URL(request.url);
+  // f_url.href = host;
+
+  let response = null;
+  if (!CFproxy) {
+    response = await _request(f_url.href, {
+      method: request.method,
+      body: request.body,
+      headers: request.headers,
+    });
+  } else {
+    let method = request.method;
+    let body = request.body;
+    let new_request_headers = {
+      ...request.headers,
+      Host: f_url.host,
+      Referer: referer,
+    };
+
+    response = await _request(f_url.href, {
+      method: method,
+      body: body,
+      headers: new_request_headers,
+    });
   }
-});
-app.post('/setFile', async (req, res) => {
-  try {
-    const { password, folder, name, content } = JSON.parse(req.body);
-    const response = await setFile(password, folder, name, content);
-    res.send(response);
-  } catch (error) {
-    res.status(500).send({ error: 'An error occurred' });
-  }
-});
-app.post('/delFile', async (req, res) => {
-  try {
-    const { password, folder, name } = JSON.parse(req.body);
-    const response = await delFile(password, folder, name);
-    res.send(response);
-  } catch (error) {
-    res.status(500).send({ error: 'An error occurred' });
-  }
-});
+
+  let out_headers = {
+    ...response.headers,
+    'Access-Control-Allow-Methods':
+      'GET,HEAD,POST,PUT,DELETE,CONNECT,OPTIONS,TRACE,PATCH',
+    'Access-Control-Allow-Headers': '*,Authorization',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Max-Age': '86400',
+  };
+  let out_body = response.data;
+
+  return makeRes(out_body, response.status, out_headers);
+}
 
 // 处理 404 错误
 app.use((req, res) => {
@@ -262,4 +253,46 @@ function keepalive() {
   setTimeout(() => {
     keepalive();
   }, (Math.ceil(Math.random() * 15) * 1000 * 60) / 2);
+}
+async function _request(
+  url,
+  { method = 'GET', headers = null, body = null } = {}
+) {
+  return new Promise((resolve, reject) => {
+    axios({
+      method: method,
+      url: url,
+      data: body,
+      headers: headers,
+    })
+      .then(response => {
+        try {
+          const data = response;
+          resolve(data);
+        } catch (error) {
+          reject(error);
+        }
+      })
+      .catch(error => {
+        if (error.response) {
+          // 请求成功发出且服务器也响应了状态码，但状态代码超出了 2xx 的范围
+          try {
+            const data = error.response;
+            resolve(data);
+          } catch (error) {
+            reject(error);
+          }
+        } else if (error.request) {
+          // 请求已经成功发起，但没有收到响应
+          // `error.request` 在浏览器中是 XMLHttpRequest 的实例，
+          // 而在node.js中是 http.ClientRequest 的实例
+          console.error(error.request);
+          reject('Error when response. ' + error.request);
+        } else {
+          // 发送请求时出了点问题
+          reject('Error when send. ' + error.message);
+        }
+        reject(error.config);
+      });
+  });
 }
