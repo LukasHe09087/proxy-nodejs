@@ -122,8 +122,8 @@ async function fetchHandler(req) {
     return makeRes('', 204);
   } else if (urlObj.pathname !== PREFIX) {
     let path = urlObj.href.replace(urlObj.origin + '/', '');
-    path = path.replace(/http:/g, 'http:/');
-    path = path.replace(/https:/g, 'https:/');
+    path = path.replace(/http:\/(?!\/)/g, 'http://');
+    path = path.replace(/https:\/(?!\/)/g, 'https://');
     // console.log(req.headers.get('referer'));
     let referer = '';
     if (path.substring(0, 1) == ':') {
@@ -260,6 +260,7 @@ async function _request(
   url,
   { method = 'GET', headers = null, body = null } = {}
 ) {
+  console.log(url, method, headers, body);
   return new Promise((resolve, reject) => {
     axios({
       method: method,
