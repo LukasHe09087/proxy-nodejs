@@ -1,6 +1,8 @@
+const fs = require('fs');
 const os = require('os');
 const http = require('http');
 const https = require('https');
+
 const config = (() => {
   let config_json;
   try {
