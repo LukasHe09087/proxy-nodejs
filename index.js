@@ -260,7 +260,6 @@ async function _request(
   url,
   { method = 'GET', headers = null, body = null } = {}
 ) {
-  console.log(url, method, headers, body);
   return new Promise((resolve, reject) => {
     axios({
       method: method,
