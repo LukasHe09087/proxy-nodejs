@@ -188,6 +188,7 @@ async function fetchAndApply(host, request, resource, referer) {
     let new_request_headers = {
       ...request.headers,
       Host: f_url.host,
+      origin: undefined,
       Referer: referer,
     };
 
