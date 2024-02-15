@@ -122,13 +122,14 @@ async function fetchHandler(req, res) {
     return makeRes('', 204);
   } else if (
     urlObj.pathname.startsWith('/http') ||
+    urlObj.pathname.startsWith('/:http') ||
     urlObj.pathname.startsWith('/;')
   ) {
     let path = urlObj.href.replace(urlObj.origin + '/', '');
     path = path.replace(/http:\/(?!\/)/g, 'http://');
     path = path.replace(/https:\/(?!\/)/g, 'https://');
     // console.log(req.headers.get('referer'));
-    let referer = '';
+    let referer = undefined;
     if (path.substring(0, 1) == ':') {
       let path_split = path.split(':');
       if (req.headers.get('referer')) {
