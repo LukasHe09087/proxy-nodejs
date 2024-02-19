@@ -190,6 +190,7 @@ async function fetchAndApply(host, request, resource, referer) {
       ...request.headers,
       Host: f_url.host,
       origin: undefined,
+      'x-forwarded-for': undefined,
       Referer: referer,
     };
 
