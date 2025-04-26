@@ -245,11 +245,10 @@ function listen_port() {
 keepalive();
 function keepalive() {
   // 保持唤醒
-  let url_host = '';
-  url_host = process.env.RENDER_EXTERNAL_HOSTNAME;
-  if (!url_host) return;
+  let keepalive_url = process.env.KEPP_ALIVE_URL;
+  if (!keepalive_url) return;
   https
-    .get(`https://${url_host}/generate_204`, res => {
+    .get(keepalive_url, res => {
       if (res.statusCode == 204) {
       } else {
         console.log('请求错误: ' + res.statusCode);
@@ -260,7 +259,7 @@ function keepalive() {
     });
   setTimeout(() => {
     keepalive();
-  }, (Math.ceil(Math.random() * 15) * 1000 * 60) / 2);
+  }, Math.ceil(Math.random() * 15) * 1000 * 60);
 }
 
 async function _request(url, { stream = false, method = 'GET', headers = null, body = null, follow_redirect = true } = {}) {
