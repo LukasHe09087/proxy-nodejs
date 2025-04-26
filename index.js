@@ -101,8 +101,8 @@ function makeRes(body, status = 200, headers = {}) {
 /**
  * @param {FetchEvent} e
  */
-async function fetchHandler(req, res) {
-  const urlStr = req.protocol + '://' + req.get('host') + req.url;
+async function fetchHandler(request, resource) {
+  const urlStr = request.protocol + '://' + request.get('host') + request.url;
   const urlObj = new URL(urlStr);
   let path = urlObj.href.replace(urlObj.origin + '/', '');
   path = path.replace(/http:\/(?!\/)/g, 'http://');
@@ -119,20 +119,20 @@ async function fetchHandler(req, res) {
   }
   // /:link
   if (path.startsWith('http')) {
-    return fetchAndApply(path, req, res, { follow_redirect: redirect });
+    return fetchAndApply(path, request, resource, { follow_redirect: redirect });
   }
   // /set_referer/:referer header/:link
   if (path.startsWith('set_referer/')) {
     const [, ref, ...rest] = path.split('/');
     const realUrl = rest.join('/');
 
-    return fetchAndApply(realUrl, req, res, { follow_redirect: redirect, referer: ref });
+    return fetchAndApply(realUrl, request, resource, { follow_redirect: redirect, referer: ref });
   }
   // /keep_referer/:link
   if (path.startsWith('keep_referer/')) {
     const realUrl = path.slice('keep_referer/'.length);
-    const referer = req.headers['referer'];
-    return fetchAndApply(realUrl, req, res, { follow_redirect: redirect, referer: referer });
+    const referer = request.headers['referer'];
+    return fetchAndApply(realUrl, request, resource, { follow_redirect: redirect, referer: referer });
   }
   try {
     const resp = await _request(ASSET_URL);
@@ -147,8 +147,6 @@ async function fetchAndApply(host, request, resource, options = {}) {
   let f_url;
   try {
     f_url = new URL(host);
-    // f_url = new URL(request.url);
-    // f_url.href = host;
   } catch (error) {
     return error;
   }
@@ -191,6 +189,10 @@ async function fetchAndApply(host, request, resource, options = {}) {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Max-Age': '86400',
   };
+  // 分块传输时content-length不被发送
+  // https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Transfer-Encoding
+  delete out_headers['content-length'];
+
   let out_body = response.data;
 
   resource.writeHead(response.status, out_headers);
