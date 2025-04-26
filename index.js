@@ -123,10 +123,12 @@ async function fetchHandler(request, resource) {
   }
   // /set_referer/:referer header/:link
   if (path.startsWith('set_referer/')) {
-    const [, ref, ...rest] = path.split('/');
-    const realUrl = rest.join('/');
+    let url_split = path.slice('set_referer/'.length);
+    url_split = url_split.split('/http');
+    const referer = url_split[0];
+    const realUrl = 'http' + url_split[1];
 
-    return fetchAndApply(realUrl, request, resource, { follow_redirect: redirect, referer: ref });
+    return fetchAndApply(realUrl, request, { follow_redirect: redirect, referer });
   }
   // /keep_referer/:link
   if (path.startsWith('keep_referer/')) {
