@@ -108,7 +108,6 @@ async function fetchHandler(req, res) {
   path = path.replace(/http:\/(?!\/)/g, 'http://');
   path = path.replace(/https:\/(?!\/)/g, 'https://');
   let redirect = false;
-  console.log(path);
 
   if (path == 'generate_204') {
     return makeRes('', 204);
