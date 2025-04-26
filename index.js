@@ -16,9 +16,7 @@ const config = (() => {
     }
   }
   let part_argo = {
-    argo_path:
-      config_json['argo_path'] ||
-      (os.platform() == 'win32' ? './cloudflared.exe' : './cloudflared'),
+    argo_path: config_json['argo_path'] || (os.platform() == 'win32' ? './cloudflared.exe' : './cloudflared'),
   };
   if (config_json['argo']) {
     part_argo = {
@@ -35,10 +33,8 @@ const config = (() => {
       ...part_tls,
       use_tls: config_json['tls']['use'] || false,
       // please use base64 encode
-      tls_key:
-        Buffer.from(config_json['tls']['key'], 'base64').toString() || '',
-      tls_cert:
-        Buffer.from(config_json['tls']['cert'], 'base64').toString() || '',
+      tls_key: Buffer.from(config_json['tls']['key'], 'base64').toString() || '',
+      tls_cert: Buffer.from(config_json['tls']['cert'], 'base64').toString() || '',
     };
   }
   return {
@@ -54,15 +50,6 @@ const compression = require('compression');
 const app = express();
 app.disable('x-powered-by');
 app.use(compression());
-app.use((req, res, next) => {
-  res.setHeader(
-    'Access-Control-Allow-Methods',
-    'GET,HEAD,POST,PUT,DELETE,CONNECT,OPTIONS,TRACE,PATCH'
-  );
-  res.setHeader('Access-Control-Allow-Headers', '*,Authorization');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  next();
-});
 
 app.use((req, res, next) => {
   let data = [];
@@ -101,8 +88,7 @@ const CFproxy = true;
  * @param {Object<string, string>} headers
  */
 function makeRes(body, status = 200, headers = {}) {
-  headers['Access-Control-Allow-Methods'] =
-    'GET,HEAD,POST,PUT,DELETE,CONNECT,OPTIONS,TRACE,PATCH';
+  headers['Access-Control-Allow-Methods'] = 'GET,HEAD,POST,PUT,DELETE,CONNECT,OPTIONS,TRACE,PATCH';
   headers['Access-Control-Allow-Headers'] = '*,Authorization';
   headers['Access-Control-Allow-Origin'] = '*';
   return {
@@ -118,53 +104,46 @@ function makeRes(body, status = 200, headers = {}) {
 async function fetchHandler(req, res) {
   const urlStr = req.protocol + '://' + req.get('host') + req.url;
   const urlObj = new URL(urlStr);
-  if (urlObj.pathname == '/generate_204') {
-    return makeRes('', 204);
-  } else if (
-    urlObj.pathname.startsWith('/http') ||
-    urlObj.pathname.startsWith('/:http') ||
-    urlObj.pathname.startsWith('/;')
-  ) {
-    let path = urlObj.href.replace(urlObj.origin + '/', '');
-    path = path.replace(/http:\/(?!\/)/g, 'http://');
-    path = path.replace(/https:\/(?!\/)/g, 'https://');
-    // console.log(req.headers.get('referer'));
-    let referer = undefined;
-    if (path.substring(0, 1) == ':') {
-      let path_split = path.split(':');
-      if (req.headers.get('referer')) {
-        referer = req.headers.get('referer');
-      }
-      let array = [];
-      for (let i = 0; i + 1 < path_split.length; i++) {
-        array[i] = path_split[i + 1];
-      }
-      path = array.join(':');
-    } else if (path.substring(0, 1) == ';') {
-      let path_split = path.split(';');
-      // console.log(path_split[1]);
-      referer = path_split[1];
-      let array = [];
-      for (let i = 0; i + 2 < path_split.length; i++) {
-        array[i] = path_split[i + 2];
-      }
-      path = array.join(';');
-    }
-    // console.log(path);
+  let path = urlObj.href.replace(urlObj.origin + '/', '');
+  path = path.replace(/http:\/(?!\/)/g, 'http://');
+  path = path.replace(/https:\/(?!\/)/g, 'https://');
+  let redirect = false;
+  console.log(path);
 
-    fetchAndApply(path, req, res, referer);
-    return undefined;
-  } else {
-    try {
-      const resp = await _request(ASSET_URL);
-      return makeRes(resp.data, resp.status, resp.headers);
-    } catch (error) {
-      return makeRes('Error:\n' + error, 502);
-    }
+  if (path == 'generate_204') {
+    return makeRes('', 204);
+  }
+  // /all/:others
+  if (path.startsWith('all/')) {
+    path = path.slice(4);
+    redirect = true;
+  }
+  // /:link
+  if (path.startsWith('http')) {
+    return fetchAndApply(path, req, res, { follow_redirect: redirect });
+  }
+  // /set_referer/:referer header/:link
+  if (path.startsWith('set_referer/')) {
+    const [, ref, ...rest] = path.split('/');
+    const realUrl = rest.join('/');
+
+    return fetchAndApply(realUrl, req, res, { follow_redirect: redirect, referer: ref });
+  }
+  // /keep_referer/:link
+  if (path.startsWith('keep_referer/')) {
+    const realUrl = path.slice('keep_referer/'.length);
+    const referer = req.headers['referer'];
+    return fetchAndApply(realUrl, req, res, { follow_redirect: redirect, referer: referer });
+  }
+  try {
+    const resp = await _request(ASSET_URL);
+    return makeRes(resp.data, resp.status, resp.headers);
+  } catch (error) {
+    return makeRes('Error:\n' + error, 502);
   }
 }
 
-async function fetchAndApply(host, request, resource, referer) {
+async function fetchAndApply(host, request, resource, options = {}) {
   // console.log(request);
   let f_url;
   try {
@@ -176,12 +155,15 @@ async function fetchAndApply(host, request, resource, referer) {
   }
 
   let response = null;
+  const referer = options.referer;
+  const follow_redirect = options.follow_redirect;
   if (!CFproxy) {
     response = await _request(f_url.href, {
       method: request.method,
       body: request.body,
       headers: request.headers,
       stream: true,
+      follow_redirect,
     });
   } else {
     let method = request.method;
@@ -199,13 +181,13 @@ async function fetchAndApply(host, request, resource, referer) {
       body: body,
       headers: new_request_headers,
       stream: true,
+      follow_redirect,
     });
   }
 
   let out_headers = {
     ...response.headers,
-    'Access-Control-Allow-Methods':
-      'GET,HEAD,POST,PUT,DELETE,CONNECT,OPTIONS,TRACE,PATCH',
+    'Access-Control-Allow-Methods': 'GET,HEAD,POST,PUT,DELETE,CONNECT,OPTIONS,TRACE,PATCH',
     'Access-Control-Allow-Headers': '*,Authorization',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Max-Age': '86400',
@@ -280,19 +262,14 @@ function keepalive() {
   }, (Math.ceil(Math.random() * 15) * 1000 * 60) / 2);
 }
 
-async function _request(
-  url,
-  { stream = false, method = 'GET', headers = null, body = null } = {}
-) {
+async function _request(url, { stream = false, method = 'GET', headers = null, body = null, follow_redirect = true } = {}) {
   return new Promise((resolve, reject) => {
     axios({
       method: method,
       url: url,
       data: body,
       headers: headers,
-      transformResponse: res => {
-        return res;
-      },
+      maxRedirects: follow_redirect ? 5 : 0,
       responseType: stream ? 'stream' : 'arraybuffer',
     })
       .then(response => {
