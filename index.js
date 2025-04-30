@@ -112,6 +112,9 @@ async function fetchHandler(request, resource) {
   if (path == 'generate_204') {
     return makeRes('', 204);
   }
+  if (path.startsWith('generate_200')) {
+    return makeRes('', 200);
+  }
   // /all/:others
   if (path.startsWith('all/')) {
     path = path.slice(4);
@@ -251,7 +254,7 @@ function keepalive() {
   if (!keepalive_url) return;
   https
     .get(keepalive_url, res => {
-      if (res.statusCode == 204) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
       } else {
         console.log('请求错误: ' + res.statusCode);
       }
@@ -261,7 +264,7 @@ function keepalive() {
     });
   setTimeout(() => {
     keepalive();
-  }, Math.ceil(Math.random() * 15) * 1000 * 60);
+  }, Math.ceil(Math.random() * 10 + 5) * 1000 * 60);
 }
 
 async function _request(url, { stream = false, method = 'GET', headers = null, body = null, follow_redirect = true } = {}) {
