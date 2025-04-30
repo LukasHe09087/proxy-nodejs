@@ -264,7 +264,7 @@ function keepalive() {
     });
   setTimeout(() => {
     keepalive();
-  }, Math.ceil(Math.random() * 10 + 5) * 1000 * 60);
+  }, Math.ceil(Math.random() * 5 + 5) * 1000 * 60);
 }
 
 async function _request(url, { stream = false, method = 'GET', headers = null, body = null, follow_redirect = true } = {}) {
